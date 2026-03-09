@@ -1,0 +1,137 @@
+services:
+  n8n-editor:
+    image: n8nio/n8n:latest
+    container_name: n8n_pos_graduacao
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - TZ=America/Sao_Paulo
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=postgres
+      - DB_POSTGRESDB_USER=postgres
+      - DB_POSTGRESDB_PASSWORD=postgres
+      - DB_POSTGRESDB_SCHEMA=public
+      - EXECUTIONS_MODE=queue
+      - QUEUE_BULL_REDIS_HOST=redis
+      - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
+      - N8N_EDITOR_BASE_URL=https://SEU_DOMINIO_NGROK_AQUI
+      - WEBHOOK_URL=https://SEU_DOMINIO_NGROK_AQUI
+      - OPENWEATHER_API_KEY=SUA_CHAVE_OPENWEATHER_AQUI
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - n8n-network
+    depends_on:
+      - postgres
+      - redis
+
+  n8n-worker:
+    image: n8nio/n8n:latest
+    container_name: n8n_pos_graduacao_worker
+    restart: always
+    command: worker
+    environment:
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - TZ=America/Sao_Paulo
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=postgres
+      - DB_POSTGRESDB_USER=postgres
+      - DB_POSTGRESDB_PASSWORD=postgres
+      - DB_POSTGRESDB_SCHEMA=public
+      - EXECUTIONS_MODE=queue
+      - QUEUE_BULL_REDIS_HOST=redis
+      - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
+      - WEBHOOK_URL=https://SEU_DOMINIO_NGROK_AQUI
+      - OPENWEATHER_API_KEY=SUA_CHAVE_OPENWEATHER_AQUI
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - n8n-network
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: postgres_n8n
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - n8n-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis_n8n
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - n8n-network
+
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: whatsapp_waha
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - WHATSAPP_HOOK_URL=https://SEU_DOMINIO_NGROK_AQUI/webhook/web-hook
+      - WHATSAPP_HOOK_EVENTS=message.any,session.status
+      - WHATSAPP_DEFAULT_ENGINE=WEBJS
+      - WAHA_DASHBOARD_NO_PASSWORD=true
+      - WAHA_PRINT_QR=true
+      - WAHA_NO_API_KEY=true
+      - WHATSAPP_SWAGGER_NO_PASSWORD=true
+      - WAHA_SESSIONS_STORE=redis
+      - WAHA_REDIS_ADDR=redis:6379
+    volumes:
+      - waha-data:/app/.sessions
+    networks:
+      - n8n-network
+    depends_on:
+      - redis
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok_n8n
+    restart: always
+    ports:
+      - "4040:4040"
+    volumes:
+      - ngrok-data:/var/lib/ngrok
+    command:
+      - http
+      - --domain=SEU_DOMINIO_NGROK_AQUI
+      - n8n-editor:5678
+    environment:
+      - NGROK_AUTHTOKEN=SEU_NGROK_AUTHTOKEN_AQUI
+    networks:
+      - n8n-network
+    depends_on:
+      - n8n-editor
+
+networks:
+  n8n-network:
+    driver: bridge
+
+volumes:
+  n8n-data:
+  postgres-data:
+  redis-data:
+  ngrok-data:
+  waha-data:
